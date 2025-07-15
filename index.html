@@ -3,283 +3,771 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>장애물 달리기</title>
+    <title>나눗셈 학습 센터</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            touch-action: manipulation; /* 더블 탭으로 인한 확대 방지 */
         }
-        canvas {
-            background-color: #2c3e50;
-            display: block;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
-        }
-        .game-container {
-            display: flex;
-            justify-content: center;
+        /* Common Styles */
+        .division-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
             align-items: center;
-            width: 100%;
+            gap: 0 10px;
+            font-size: 1.5rem;
+            line-height: 2rem;
+            width: fit-content;
+        }
+        .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        .divisor {
+            grid-row: 2;
+            padding-right: 10px;
+            border-right: 2px solid #333;
+        }
+        .dividend {
+            grid-row: 2;
+            grid-column: 2;
+            letter-spacing: 0.5em;
+            padding-left: 0.5em;
+        }
+        .quotient {
+            grid-row: 1;
+            grid-column: 2;
+            letter-spacing: 0.5em;
+            padding-left: 0.5em;
+            border-bottom: 2px solid #333;
+            height: 2rem;
+        }
+        .calc-step {
+            grid-column: 2;
+            letter-spacing: 0.5em;
+            padding-left: 0.5em;
+        }
+        .highlight { color: #EF4444; font-weight: 700; }
+        .highlight-blue { color: #3B82F6; font-weight: 700; }
+        .highlight-green { color: #22C55E; font-weight: 700; }
+        .step-line { border-bottom: 2px solid #333; }
+        .hundred-bar { fill: #FCA5A5; transition: all 0.5s ease; }
+        .ten-bar { fill: #93C5FD; transition: all 0.5s ease; }
+        .one-bar { fill: #A7F3D0; transition: all 0.5s ease; }
+        .group-box { stroke: #F87171; stroke-width: 2; fill: none; stroke-dasharray: 4 2; }
+        .exchange-highlight {
+            filter: drop-shadow(0 0 6px #FBBF24);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        /* Learning Page Specific */
+        #learning-section .timeline-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
             height: 100%;
-            position: relative;
+            padding-left: 1rem;
         }
-        #gameOverScreen {
-            background-color: rgba(0, 0, 0, 0.75);
-            border-radius: 0.5rem;
+        #learning-section .timeline-line {
+            width: 2px;
+            background-color: #CBD5E1;
+            flex-grow: 1;
+            margin: -2px 0;
         }
-        #restartButton {
-            transition: background-color 0.3s, transform 0.2s;
+        #learning-section .timeline-step {
+            width: 2rem; height: 2rem; border-radius: 9999px; background-color: #E2E8F0;
+            border: 2px solid #CBD5E1; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #475569; cursor: pointer; transition: all 0.2s ease-in-out;
+            flex-shrink: 0; position: relative; z-index: 10;
         }
-        #restartButton:hover {
-            transform: translateY(-2px);
+        #learning-section .timeline-step:hover { background-color: #93C5FD; border-color: #3B82F6; }
+        #learning-section .timeline-step.active {
+            background-color: #3B82F6; border-color: #2563EB; color: white; transform: scale(1.1);
         }
+        #learning-section .problem-btn {
+            padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 700; transition: all 0.2s;
+        }
+        #learning-section .problem-btn.active { background-color: #3B82F6; color: white; }
+        #learning-section .problem-btn:not(.active) { background-color: #E2E8F0; color: #475569; }
+
+        /* Practice Page Specific */
+        #practice-section .division-grid {
+            font-size: 1.8rem; line-height: 2.2rem; border: 2px solid #e5e7eb;
+            padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;
+        }
+        #practice-section .dividend, #practice-section .quotient, #practice-section .calc-step {
+             letter-spacing: 0.8em; padding-left: 0.8em;
+        }
+        #practice-section .quotient { height: 2.2rem; color: #3B82F6; }
+        #practice-section .input-box {
+            width: 5rem; height: 3rem; text-align: center; font-size: 1.5rem;
+            border: 2px solid #D1D5DB; border-radius: 0.375rem;
+        }
+        #practice-section .input-box:focus {
+            outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        #practice-section .input-box:disabled { background-color: #F3F4F6; color: #9CA3AF; }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+<body class="bg-gray-100">
 
-    <div class="w-full max-w-2xl mx-auto text-center mb-4">
-        <h1 class="text-4xl font-bold text-cyan-400 mb-2">장애물 달리기</h1>
-        <p class="text-lg text-gray-300">스페이스바 또는 화면을 클릭하여 점프하세요!</p>
-    </div>
+    <!-- Main Menu -->
+    <div id="main-menu" class="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
+        <div class="text-center">
+            <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 mb-4">나눗셈 학습 센터</h1>
+            <p class="text-lg sm:text-xl text-gray-600 mb-8">학습을 시작하려면 번호와 이름을 입력하세요.</p>
+        </div>
+        <div id="login-form" class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg">
+            <div class="space-y-4">
+                <div>
+                    <label for="student-number" class="block text-lg font-medium text-gray-700">번호</label>
+                    <select id="student-number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-lg bg-white">
+                        <option value="">번호를 선택하세요</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="student-name" class="block text-lg font-medium text-gray-700">이름</label>
+                    <input type="text" id="student-name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-lg" placeholder="예: 홍길동">
+                </div>
+            </div>
+             <p id="login-error" class="text-red-500 text-center mt-4 h-6"></p>
+            <button id="start-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-xl mt-6 transition-transform transform hover:scale-105">시작하기</button>
+        </div>
 
-    <div id="gameContainer" class="relative w-full max-w-2xl aspect-[2/1]">
-        <canvas id="gameCanvas"></canvas>
-        <div id="score" class="absolute top-4 left-4 text-2xl font-bold bg-black bg-opacity-50 px-3 py-1 rounded-lg">생존 시간: 0.0초</div>
-        
-        <div id="gameOverScreen" class="absolute inset-0 flex-col items-center justify-center hidden">
-            <h2 class="text-5xl font-bold text-red-500 mb-4">게임 오버!</h2>
-            <p id="finalScore" class="text-2xl mb-6"></p>
-            <button id="restartButton" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-lg">
-                다시 시작
-            </button>
+        <div id="mode-selector" class="hidden text-center mt-12">
+             <p class="text-xl text-gray-600 mb-8"><span id="welcome-message" class="font-bold"></span>님, 환영합니다! 무엇을 하고 싶나요?</p>
+            <div class="flex flex-col sm:flex-row gap-6">
+                <button id="show-learning-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-6 px-12 rounded-xl text-2xl transition-transform transform hover:scale-105 shadow-lg">
+                    📖 학습하기
+                </button>
+                <button id="show-practice-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-6 px-12 rounded-xl text-2xl transition-transform transform hover:scale-105 shadow-lg">
+                    ✏️ 문제 풀기
+                </button>
+            </div>
         </div>
     </div>
 
+    <!-- Learning Section -->
+    <div id="learning-section" class="hidden p-4 sm:p-8">
+        <div class="w-full max-w-6xl mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b border-gray-200 pb-4 mb-6 gap-4">
+                <h1 class="text-2xl sm:text-4xl font-bold text-gray-800 text-center sm:text-left">나눗셈 원리 배우기</h1>
+                <button class="home-btn bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg text-lg">🏠 홈으로</button>
+            </div>
+            <div id="problem-selector" class="flex flex-col sm:flex-row justify-center gap-4 mb-6">
+                <button id="problem1-btn" class="problem-btn">문제 1: 475 ÷ 3</button>
+                <button id="problem2-btn" class="problem-btn">문제 2: 538 ÷ 4</button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="flex flex-col items-center justify-center bg-gray-100 p-6 rounded-xl h-full">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-700">나눗셈 세로셈 과정</h2>
+                    <div class="division-grid font-mono">
+                        <div class="quotient">&nbsp;</div>
+                        <div class="divisor">3</div>
+                        <div class="dividend">475</div>
+                        <div class="calc-step" id="l-calc-step-1">&nbsp;</div><div class="calc-step step-line" id="l-calc-step-2">&nbsp;</div>
+                        <div class="calc-step" id="l-calc-step-3">&nbsp;</div><div class="calc-step" id="l-calc-step-4">&nbsp;</div>
+                        <div class="calc-step step-line" id="l-calc-step-5">&nbsp;</div><div class="calc-step" id="l-calc-step-6">&nbsp;</div>
+                        <div class="calc-step" id="l-calc-step-7">&nbsp;</div><div class="calc-step step-line" id="l-calc-step-8">&nbsp;</div>
+                        <div class="calc-step" id="l-calc-step-9">&nbsp;</div>
+                    </div>
+                </div>
+                <div class="bg-sky-50 p-6 rounded-xl h-full flex justify-center">
+                     <div class="flex-grow">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-700 flex items-center gap-3">
+                            <span>단계별 설명</span><span class="step-counter bg-blue-100 text-blue-800 text-base font-bold px-3 py-1 rounded-full hidden"></span>
+                        </h2>
+                        <div class="explanation flex items-center gap-4 min-h-[200px]">
+                            <div class="explanation-text flex-1 text-lg text-gray-800 space-y-2"></div>
+                            <div class="explanation-image w-40 h-40 flex-shrink-0 flex items-center justify-center"></div>
+                        </div>
+                        <div class="multiplication-check mt-4 p-4 bg-white rounded-lg shadow-inner min-h-[60px]">
+                            <h3 class="font-semibold text-lg text-sky-700">🔍 곱셈으로 확인하기</h3><p class="multiplication-text text-gray-700 mt-1"></p>
+                        </div>
+                     </div>
+                     <div class="timeline-container"></div>
+                </div>
+            </div>
+            <div class="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex gap-2">
+                    <button class="reset-btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg">다시하기</button>
+                    <button class="show-mistake-btn bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-lg">자주 하는 실수</button>
+                </div>
+                <div class="flex gap-2">
+                    <button class="prev-step-btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-lg">이전 단계</button>
+                    <button class="next-step-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg">다음 단계</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practice Section -->
+    <div id="practice-section" class="hidden p-4 sm:p-8">
+        <div class="w-full max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b border-gray-200 pb-4 mb-6 gap-4">
+                <h1 class="text-2xl sm:text-4xl font-bold text-gray-800">나눗셈 실력 다지기 <span id="problem-counter"></span></h1>
+                <div class="flex gap-2">
+                    <button class="export-btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg text-lg" disabled>결과 저장</button>
+                    <button class="home-btn bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg text-lg">🏠 홈으로</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="flex flex-col items-center justify-center">
+                    <div class="division-grid font-mono mb-6">
+                        <div class="quotient">&nbsp;</div><div class="divisor"></div><div class="dividend"></div>
+                        <div class="calc-step" id="p-calc-step-1">&nbsp;</div><div class="calc-step step-line" id="p-calc-step-2">&nbsp;</div>
+                        <div class="calc-step" id="p-calc-step-3">&nbsp;</div><div class="calc-step" id="p-calc-step-4">&nbsp;</div>
+                        <div class="calc-step step-line" id="p-calc-step-5">&nbsp;</div><div class="calc-step" id="p-calc-step-6">&nbsp;</div>
+                        <div class="calc-step" id="p-calc-step-7">&nbsp;</div><div class="calc-step step-line" id="p-calc-step-8">&nbsp;</div>
+                        <div class="calc-step" id="p-calc-step-9">&nbsp;</div>
+                    </div>
+                    <div class="bar-display w-full h-24 bg-gray-50 rounded-lg p-2"></div>
+                </div>
+                <div class="bg-blue-50 p-6 rounded-xl flex flex-col justify-center">
+                    <div>
+                        <h2 class="instruction text-xl font-semibold text-gray-800 mb-4"></h2>
+                        <div class="flex items-center justify-center gap-4">
+                            <input type="number" class="input-box" disabled>
+                            <button class="check-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg">정답 확인</button>
+                        </div>
+                    </div>
+                    <div class="feedback mt-4 text-center text-lg font-semibold min-h-[5rem]"></div>
+                    <div id="practice-controls" class="mt-6 text-center">
+                         <button class="new-set-btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-lg w-full hidden">새로운 세트 시작</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-gray-500 py-4 text-sm">&copy; 2025. 핑키네. All rights reserved. 교육적 목적으로 원저작자 명시 하에 공유 및 사용 가능합니다.</footer>
+
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gameContainer = document.getElementById('gameContainer');
+        // 이 코드는 교육적 목적으로 제작되었으며, 원저작자 '핑키네'를 명시하는 조건 하에 자유롭게 공유 및 사용이 가능합니다.
+        
+        // --- Main App Controller ---
+        const mainMenu = document.getElementById('main-menu');
+        const loginForm = document.getElementById('login-form');
+        const studentNumberSelect = document.getElementById('student-number');
+        const studentNameInput = document.getElementById('student-name');
+        const startBtn = document.getElementById('start-btn');
+        const loginErrorEl = document.getElementById('login-error');
+        const modeSelector = document.getElementById('mode-selector');
+        const welcomeMessageEl = document.getElementById('welcome-message');
+        
+        const learningSection = document.getElementById('learning-section');
+        const practiceSection = document.getElementById('practice-section');
+        const showLearningBtn = document.getElementById('show-learning-btn');
+        const showPracticeBtn = document.getElementById('show-practice-btn');
+        const homeBtns = document.querySelectorAll('.home-btn');
 
-        const scoreElement = document.getElementById('score');
-        const gameOverScreen = document.getElementById('gameOverScreen');
-        const finalScoreElement = document.getElementById('finalScore');
-        const restartButton = document.getElementById('restartButton');
+        let studentNumber = '';
+        let studentName = '';
 
-        // 게임 변수 초기화
-        let player, obstacles, startTime, elapsedTime, gameSpeed, gravity, animationFrameId, isGameOver;
+        function showSection(sectionId) {
+            mainMenu.classList.add('hidden');
+            learningSection.classList.add('hidden');
+            practiceSection.classList.add('hidden');
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
 
-        const JUMP_STRENGTH = 18;
-        const INITIAL_GAME_SPEED = 5;
-        const GAME_SPEED_INCREMENT = 0.002;
-
-        // 플레이어 클래스
-        class Player {
-            constructor(x, y, width, height, color) {
-                this.x = x;
-                this.y = y;
-                this.width = width;
-                this.height = height;
-                this.color = color;
-                this.velocityY = 0;
-                this.isJumping = false;
+        startBtn.addEventListener('click', () => {
+            studentNumber = studentNumberSelect.value;
+            studentName = studentNameInput.value.trim();
+            if (studentNumber && studentName) {
+                loginForm.classList.add('hidden');
+                welcomeMessageEl.textContent = `${studentNumber}번 ${studentName}`;
+                modeSelector.classList.remove('hidden');
+                loginErrorEl.textContent = '';
+            } else {
+                loginErrorEl.textContent = '번호와 이름을 모두 입력해주세요.';
             }
+        });
 
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-            }
+        showLearningBtn.addEventListener('click', () => {
+            showSection('learning-section');
+            if (!learningApp.initialized) learningApp.init();
+        });
+        showPracticeBtn.addEventListener('click', () => {
+            showSection('practice-section');
+            if (!practiceApp.initialized) practiceApp.init();
+        });
+        homeBtns.forEach(btn => btn.addEventListener('click', () => {
+            showSection('main-menu');
+            loginForm.classList.remove('hidden');
+            modeSelector.classList.add('hidden');
+            studentNumberSelect.value = '';
+            studentNameInput.value = '';
+        }));
+        
+        // Populate student number dropdown
+        for (let i = 1; i <= 50; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `${i}번`;
+            studentNumberSelect.appendChild(option);
+        }
 
-            update() {
-                this.velocityY += gravity;
-                this.y += this.velocityY;
-
-                // 바닥에 닿았을 때
-                if (this.y + this.height > canvas.height) {
-                    this.y = canvas.height - this.height;
-                    this.velocityY = 0;
-                    this.isJumping = false;
+        // --- Common SVG Function ---
+        function createBarsSVG(h, t, o, options = {}) {
+            const { groupBox, impossible, highlightExchange } = options;
+            let svg = `<svg viewBox="0 0 140 140" class="w-full h-full">`;
+            let yOffset = 10;
+            if (h > 0) {
+                svg += `<g>`;
+                for (let i = 0; i < h; i++) {
+                    const isHighlighted = highlightExchange && highlightExchange.h && i === 0;
+                    svg += `<rect x="${10 + (i % 4) * 30}" y="${yOffset + Math.floor(i / 4) * 30}" width="25" height="25" class="hundred-bar ${isHighlighted ? 'exchange-highlight' : ''}"/>`;
                 }
+                svg += `</g>`;
+                if (groupBox && groupBox.h) { svg += `<rect x="8" y="${yOffset-2}" width="${groupBox.h.items * 30}" height="30" class="group-box" />`; }
+                yOffset += Math.ceil(h / 4) * 30;
             }
-
-            jump() {
-                if (!this.isJumping) {
-                    this.isJumping = true;
-                    this.velocityY = -JUMP_STRENGTH;
+            if (t > 0) {
+                svg += `<g>`;
+                for (let i = 0; i < t; i++) {
+                    const isHighlighted = highlightExchange && highlightExchange.t && i < (highlightExchange.t.count || 0);
+                    const isExchanging = highlightExchange && highlightExchange.t && highlightExchange.t.source === 'ten' && i < 2;
+                    svg += `<rect x="${10 + (i % 10) * 12}" y="${yOffset + Math.floor(i / 10) * 30}" width="8" height="25" class="ten-bar ${isHighlighted || isExchanging ? 'exchange-highlight' : ''}"/>`;
                 }
+                svg += `</g>`;
+                if (groupBox && groupBox.t) {
+                     const itemsToBox = groupBox.t.items;
+                     const fullRows = Math.floor(itemsToBox / 10);
+                     const lastRowItems = itemsToBox % 10;
+                     for (let r = 0; r < fullRows; r++) { svg += `<rect x="8" y="${yOffset + r * 30 - 2}" width="${10 * 12}" height="30" class="group-box" />`; }
+                     if (lastRowItems > 0) { svg += `<rect x="8" y="${yOffset + fullRows * 30 - 2}" width="${lastRowItems * 12}" height="30" class="group-box" />`; }
+                }
+                yOffset += Math.ceil(t / 10) * 30;
             }
+            if (o > 0) {
+                 svg += `<g>`;
+                for (let i = 0; i < o; i++) {
+                    const isHighlighted = highlightExchange && highlightExchange.o && i < (highlightExchange.o.count || 0);
+                    svg += `<rect x="${10 + (i % 10) * 12}" y="${yOffset + Math.floor(i / 10) * 15}" width="10" height="10" class="one-bar ${isHighlighted ? 'exchange-highlight' : ''}"/>`;
+                }
+                svg += `</g>`;
+                 if (groupBox && groupBox.o) {
+                     const itemsToBox = groupBox.o.items;
+                     const fullRows = Math.floor(itemsToBox / 10);
+                     const lastRowItems = itemsToBox % 10;
+                     for (let r = 0; r < fullRows; r++) { svg += `<rect x="8" y="${yOffset + r * 15 - 2}" width="${10 * 12}" height="15" class="group-box" />`; }
+                     if (lastRowItems > 0) { svg += `<rect x="8" y="${yOffset + fullRows * 15 - 2}" width="${lastRowItems * 12}" height="15" class="group-box" />`; }
+                 }
+                 yOffset += Math.ceil(o / 10) * 15;
+            }
+            if (impossible) { svg += `<g><line x1="10" y1="10" x2="130" y2="130" stroke="#EF4444" stroke-width="8" stroke-linecap="round"/><line x1="130" y1="10" x2="10" y2="130" stroke="#EF4444" stroke-width="8" stroke-linecap="round"/></g>`; }
+            if (options === 'trophy') { svg = `<svg viewBox="0 0 140 140"><text x="70" y="75" font-size="60" text-anchor="middle" fill="#0284C7">🏆</text></svg>`}
+            return svg;
         }
 
-        // 장애물 클래스
-        class Obstacle {
-            constructor(x, y, width, height, color) {
-                this.x = x;
-                this.y = y;
-                this.width = width;
-                this.height = height;
-                this.color = color;
-            }
-
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-            }
-
-            update() {
-                this.x -= gameSpeed;
-            }
-        }
-
-        // 캔버스 크기 조절 함수
-        function resizeCanvas() {
-            const containerRect = gameContainer.getBoundingClientRect();
-            canvas.width = containerRect.width;
-            canvas.height = containerRect.height;
-        }
-
-        // 게임 초기화 및 시작 함수
-        function startGame() {
-            resizeCanvas(); // 시작 시 캔버스 크기 맞춤
-
-            isGameOver = false;
-            obstacles = [];
-            startTime = Date.now();
-            elapsedTime = 0;
-            gameSpeed = INITIAL_GAME_SPEED;
-            gravity = 1;
-
-            // 플레이어 생성
-            const playerSize = canvas.width * 0.05;
-            player = new Player(playerSize, canvas.height - playerSize, playerSize, playerSize, '#3498db');
-            
-            // UI 초기화
-            gameOverScreen.classList.add('hidden');
-            gameOverScreen.classList.remove('flex');
-            scoreElement.style.display = 'block';
-
-            // 기존 애니메이션 프레임이 있다면 취소
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-            
-            // 게임 루프 시작
-            gameLoop();
-        }
-
-        // 장애물 생성 함수
-        let obstacleTimer = 0;
-        let nextObstacleInterval = 120; // 프레임 단위
-
-        function generateObstacles() {
-            obstacleTimer++;
-            if (obstacleTimer > nextObstacleInterval) {
-                const minHeight = 20;
-                const maxHeight = canvas.height * 0.4;
-                const minWidth = 20;
-                const maxWidth = 50;
-                const height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
-                const width = Math.floor(Math.random() * (maxWidth - minWidth + 1)) + minWidth;
+        // --- Learning App ---
+        const learningApp = {
+            initialized: false,
+            dividendEl: learningSection.querySelector('.dividend'),
+            divisorEl: learningSection.querySelector('.divisor'),
+            quotientEl: learningSection.querySelector('.quotient'),
+            explanationTextEl: learningSection.querySelector('.explanation-text'),
+            explanationImageEl: learningSection.querySelector('.explanation-image'),
+            multiplicationTextEl: learningSection.querySelector('.multiplication-text'),
+            nextStepBtn: learningSection.querySelector('.next-step-btn'),
+            prevStepBtn: learningSection.querySelector('.prev-step-btn'),
+            resetBtn: learningSection.querySelector('.reset-btn'),
+            showMistakeBtn: learningSection.querySelector('.show-mistake-btn'),
+            stepCounterEl: learningSection.querySelector('.step-counter'),
+            timelineEl: learningSection.querySelector('.timeline-container'),
+            problem1Btn: learningSection.querySelector('#problem1-btn'),
+            problem2Btn: learningSection.querySelector('#problem2-btn'),
+            calcSteps: Array.from({length: 9}, (_, i) => learningSection.querySelector(`#l-calc-step-${i + 1}`)),
+            TOTAL_STEPS: 7,
+            currentStep: 0,
+            inMistakeMode: false,
+            savedState: {},
+            currentProblem: null,
+            problems: {
+                p1: { dividend: 475, divisor: 3, totalSteps: 7, steps: [ { text: `<p>'475 ÷ 3'을 계산해 봅시다. '다음 단계' 버튼을 눌러 시작하세요.</p>`, img: [4, 7, 5], mul: '' }, { text: `<p>나눗셈은 <span class="highlight">가장 큰 자리</span>부터 시작해요.</p><p>백모형 <span class="highlight">4</span>개 묶음에서 3개씩 묶으면 <span class="highlight-blue">1</span>묶음이 나와요. 몫의 백의 자리에 <span class="highlight-blue">1</span>을 써요.</p>`, img: [4, 7, 5, { groupBox: { h: { items: 3 } } }], mul: `몫(<span class="highlight-blue">1</span>00) × 3 = 300` }, { text: `<p>몫 <span class="highlight-blue">1</span>과 3을 곱한 <span class="highlight-green">3</span>을 4 아래에 써요.</p><p>백모형 4개에서 3개를 덜어내면 <span class="highlight">1</span>개가 남습니다.</p>`, img: [1, 7, 5], mul: `<span class="highlight-blue">1</span> × 3 = <span class="highlight-green">3</span>` }, { text: `<p>십의 자리 7을 내려써서 <span class="highlight">17</span>을 만들고, 3으로 나눌 준비를 해요. <span class="highlight">17</span> 안에는 3이 <span class="highlight-blue">5</span>번 들어갑니다!</p>`, img: [0, 17, 5, { groupBox: { t: { items: 15 } } }], mul: `몫(<span class="highlight-blue">5</span>0) × 3 = 150`, animation: { from: [1, 7, 5, { highlightExchange: { h: true } }], to: [0, 17, 5, { highlightExchange: { t: { count: 10 } } }], text1: `<p>남은 백모형 1개를 십모형 10개로 바꿔야 해요. 1은 3보다 작으니까요.</p>`, text2: `<p>백모형 1개가 십모형 10개로 바뀌었어요. 원래 있던 7개와 합쳐 <span class="highlight">총 17개</span>가 되었습니다.</p>` } }, { text: `<p>몫 <span class="highlight-blue">5</span>와 3을 곱한 <span class="highlight-green">15</span>를 17 아래에 쓰고 빼줘요.</p><p>십모형 17개에서 15개를 덜어내면 <span class="highlight">2</span>개가 남습니다.</p>`, img: [0, 2, 5], mul: `<span class="highlight-blue">5</span> × 3 = <span class="highlight-green">15</span>` }, { text: `<p>일의 자리 5를 내려써서 <span class="highlight">25</span>를 만들어요. <span class="highlight">25</span> 안에는 3이 <span class="highlight-blue">8</span>번 들어갑니다!</p>`, img: [0, 0, 25, { groupBox: { o: { items: 24 } } }], mul: `몫(<span class="highlight-blue">8</span>) × 3 = 24`, animation: { from: [0, 2, 5, { highlightExchange: { t: { source: 'ten' } } }], to: [0, 0, 25, { highlightExchange: { o: { count: 20 } } }], text1: `<p>남은 십모형 2개를 일모형 20개로 바꿔야 해요. 2은 3보다 작으니까요.</p>`, text2: `<p>십모형 2개가 일모형 20개로 바뀌었어요. 원래 있던 5개와 합쳐 <span class="highlight">총 25개</span>가 되었습니다.</p>` } }, { text: `<p>몫 <span class="highlight-blue">8</span>과 3을 곱한 <span class="highlight-green">24</span>를 25 아래에 쓰고 빼줘요.</p><p>일모형 25개에서 24개를 덜어내면 <span class="highlight">1</span>개가 남아요. 이것이 나머지입니다.</p>`, img: [0, 0, 1], mul: `<span class="highlight-blue">8</span> × 3 = <span class="highlight-green">24</span>` }, { text: `<p class="font-bold text-xl">계산 완료!</p><p>몫은 <span class="highlight-green">158</span>, 나머지는 <span class="highlight">1</span>입니다.</p><p>곱셈으로 확인해볼까요?</p>`, img: 'trophy', mul: `(몫 <span class="highlight-green">158</span> × 3) + 나머지 <span class="highlight">1</span> = 475` } ] },
+                p2: { dividend: 538, divisor: 4, totalSteps: 7, steps: [ { text: `<p>'538 ÷ 4'를 계산해 봅시다. '다음 단계' 버튼을 눌러 시작하세요.</p>`, img: [5, 3, 8], mul: '' }, { text: `<p>백의 자리 <span class="highlight">5</span> 안에 4가 몇 번 들어갈까요? <span class="highlight-blue">1</span>번 들어갑니다. 몫의 백의 자리에 <span class="highlight-blue">1</span>을 씁니다.</p>`, img: [5, 3, 8, { groupBox: { h: { items: 4 } } }], mul: `몫(<span class="highlight-blue">1</span>00) × 4 = 400` }, { text: `<p>몫 <span class="highlight-blue">1</span>과 4를 곱한 <span class="highlight-green">4</span>를 5 아래에 쓰고 뺍니다. <span class="highlight">1</span>이 남습니다.</p>`, img: [1, 3, 8], mul: `<span class="highlight-blue">1</span> × 4 = <span class="highlight-green">4</span>` }, { text: `<p>십의 자리 3을 내려써서 <span class="highlight">13</span>을 만들어요. <span class="highlight">13</span> 안에는 4가 <span class="highlight-blue">3</span>번 들어갑니다.</p>`, img: [0, 13, 8, { groupBox: { t: { items: 12 } } }], mul: `몫(<span class="highlight-blue">3</span>0) × 4 = 120`, animation: { from: [1, 3, 8, { highlightExchange: { h: true } }], to: [0, 13, 8, { highlightExchange: { t: { count: 10 } } }], text1: `<p>남은 백모형 1개를 십모형 10개로 바꿔요.</p>`, text2: `<p>원래 있던 3개와 합쳐 <span class="highlight">총 13개</span>가 되었습니다.</p>` } }, { text: `<p>몫 <span class="highlight-blue">3</span>과 4를 곱한 <span class="highlight-green">12</span>를 13 아래에 쓰고 뺍니다. <span class="highlight">1</span>이 남습니다.</p>`, img: [0, 1, 8], mul: `<span class="highlight-blue">3</span> × 4 = <span class="highlight-green">12</span>` }, { text: `<p>일의 자리 8을 내려써서 <span class="highlight">18</span>을 만들어요. <span class="highlight">18</span> 안에는 4가 <span class="highlight-blue">4</span>번 들어갑니다.</p>`, img: [0, 0, 18, { groupBox: { o: { items: 16 } } }], mul: `몫(<span class="highlight-blue">4</span>) × 4 = 16`, animation: { from: [0, 1, 8, { highlightExchange: { t: { source: 'ten' } } }], to: [0, 0, 18, { highlightExchange: { o: { count: 10 } } }], text1: `<p>남은 십모형 1개를 일모형 10개로 바꿔요.</p>`, text2: `<p>원래 있던 8개와 합쳐 <span class="highlight">총 18개</span>가 되었습니다.</p>` } }, { text: `<p>몫 <span class="highlight-blue">4</span>와 4를 곱한 <span class="highlight-green">16</span>을 18 아래에 쓰고 뺍니다. <span class="highlight">2</span>가 남습니다.</p>`, img: [0, 0, 2], mul: `<span class="highlight-blue">4</span> × 4 = <span class="highlight-green">16</span>` }, { text: `<p class="font-bold text-xl">계산 완료!</p><p>몫은 <span class="highlight-green">134</span>, 나머지는 <span class="highlight">2</span>입니다.</p><p>곱셈으로 확인해볼까요?</p>`, img: 'trophy', mul: `(몫 <span class="highlight-green">134</span> × 4) + 나머지 <span class="highlight">2</span> = 538` } ] }
+            },
+            init() {
+                if (this.initialized) return;
+                this.resetBtn.addEventListener('click', () => {
+                    if (this.inMistakeMode) { this.restoreState(); } 
+                    else { this.loadProblem(this.currentProblem === this.problems.p1 ? 'p1' : 'p2'); }
+                });
+                this.nextStepBtn.addEventListener('click', () => this.nextStep());
+                this.prevStepBtn.addEventListener('click', () => this.prevStep());
+                this.showMistakeBtn.addEventListener('click', () => this.playMistakeAnimation());
+                this.problem1Btn.addEventListener('click', () => this.loadProblem('p1'));
+                this.problem2Btn.addEventListener('click', () => this.loadProblem('p2'));
+                this.loadProblem('p1');
+                this.initialized = true;
+            },
+            buildTimeline() {
+                this.timelineEl.innerHTML = '';
+                for (let i = 1; i <= this.currentProblem.totalSteps; i++) {
+                    const stepEl = document.createElement('div');
+                    stepEl.className = 'timeline-step';
+                    stepEl.innerText = i;
+                    stepEl.dataset.step = i;
+                    stepEl.addEventListener('click', () => this.goToStep(i));
+                    this.timelineEl.appendChild(stepEl);
+                    if (i < this.currentProblem.totalSteps) {
+                        const lineEl = document.createElement('div');
+                        lineEl.className = 'timeline-line';
+                        this.timelineEl.appendChild(lineEl);
+                    }
+                }
+            },
+            updateTimeline(step) {
+                const steps = this.timelineEl.querySelectorAll('.timeline-step');
+                steps.forEach(el => {
+                    if (parseInt(el.dataset.step) === step) { el.classList.add('active'); } 
+                    else { el.classList.remove('active'); }
+                });
+            },
+            renderCalculationState(step) {
+                const problem = this.currentProblem;
+                const dividendStr = String(problem.dividend);
+                const d = dividendStr.split('').map(Number);
                 
-                obstacles.push(new Obstacle(canvas.width, canvas.height - height, width, height, '#e74c3c'));
+                this.quotientEl.innerHTML = '&nbsp;';
+                this.dividendEl.innerHTML = dividendStr;
+                this.calcSteps.forEach(el => { el.classList.add('hidden'); el.innerHTML = '&nbsp;'; });
+
+                if (step === 0) return;
+
+                const q = []; let r = 0; let currentVal = 0;
                 
-                obstacleTimer = 0;
-                // 다음 장애물 생성 간격을 무작위로 설정하여 예측하기 어렵게 만듦
-                nextObstacleInterval = Math.floor(Math.random() * (150 - 80 + 1) + 80) / (gameSpeed / INITIAL_GAME_SPEED);
+                currentVal = d[0]; q[0] = Math.floor(currentVal / problem.divisor);
+                const product1 = q[0] * problem.divisor; r = currentVal - product1;
+                const val2 = r * 10 + d[1]; q[1] = Math.floor(val2 / problem.divisor);
+                const product2 = q[1] * problem.divisor; r = val2 - product2;
+                const val3 = r * 10 + d[2]; q[2] = Math.floor(val3 / problem.divisor);
+                const product3 = q[2] * problem.divisor; const finalRemainder = val3 - product3;
+                
+                const fullQuotient = q.join('');
+
+                if (step >= 1) { this.quotientEl.innerHTML = `${q[0]}`; }
+                if (step >= 2) { this.calcSteps[0].innerHTML = `${product1}`; this.calcSteps[0].classList.remove('hidden'); this.calcSteps[1].classList.remove('hidden'); this.calcSteps[2].innerHTML = `${r}`; this.calcSteps[2].classList.remove('hidden'); }
+                if (step >= 3) { this.quotientEl.innerHTML = `${q[0]}${q[1]}`; this.calcSteps[2].innerHTML = `${val2}`; }
+                if (step >= 4) { this.calcSteps[3].innerHTML = String(product2).padStart(2, '\u00A0'); this.calcSteps[3].classList.remove('hidden'); this.calcSteps[4].classList.remove('hidden'); this.calcSteps[5].innerHTML = String(r).padStart(2, '\u00A0'); this.calcSteps[5].classList.remove('hidden'); }
+                if (step >= 5) { this.quotientEl.innerHTML = `${q[0]}${q[1]}${q[2]}`; this.calcSteps[5].innerHTML = String(val3).padStart(3, '\u00A0'); }
+                if (step >= 6) { this.calcSteps[6].innerHTML = String(product3).padStart(3, '\u00A0'); this.calcSteps[6].classList.remove('hidden'); this.calcSteps[7].classList.remove('hidden'); this.calcSteps[8].innerHTML = String(finalRemainder).padStart(3, '\u00A0'); this.calcSteps[8].classList.remove('hidden'); }
+                
+                if (step === 1) { this.dividendEl.innerHTML = `<span class="highlight">${d[0]}</span>${d.slice(1).join('')}`; this.quotientEl.innerHTML = `<span class="highlight-blue">${q[0]}</span>`; }
+                if (step === 3) { this.dividendEl.innerHTML = `${d[0]}<span class="highlight">${d[1]}</span>${d.slice(2).join('')}`; this.quotientEl.innerHTML = `${q[0]}<span class="highlight-blue">${q[1]}</span>`; }
+                if (step === 5) { this.dividendEl.innerHTML = `${d.slice(0, 2).join('')}<span class="highlight">${d[2]}</span>`; this.quotientEl.innerHTML = `${q[0]}${q[1]}<span class="highlight-blue">${q[2]}</span>`; }
+                if (step === 7) { this.quotientEl.innerHTML = `<span class="highlight-green">${fullQuotient}</span>`; }
+            },
+            renderStep(step) {
+                this.currentStep = step;
+                this.updateTimeline(step);
+                const stepData = this.currentProblem.steps[step];
+                const isAnimationStep = !!stepData.animation;
+                this.nextStepBtn.disabled = isAnimationStep;
+                this.prevStepBtn.disabled = isAnimationStep || step === 0;
+                this.showMistakeBtn.disabled = isAnimationStep;
+                this.timelineEl.querySelectorAll('.timeline-step').forEach(el => el.style.pointerEvents = isAnimationStep ? 'none' : 'auto');
+
+                if (step > 0 && step < this.currentProblem.totalSteps) { this.stepCounterEl.innerText = `${step}단계`; this.stepCounterEl.classList.remove('hidden'); } 
+                else { this.stepCounterEl.classList.add('hidden'); }
+                
+                this.renderCalculationState(step);
+
+                if (isAnimationStep) {
+                    const anim = stepData.animation;
+                    this.explanationTextEl.innerHTML = anim.text1; this.explanationImageEl.innerHTML = createBarsSVG(...anim.from);
+                    setTimeout(() => { this.explanationTextEl.innerHTML = anim.text2; this.explanationImageEl.innerHTML = createBarsSVG(...anim.to); }, 1500);
+                    setTimeout(() => { this.explanationTextEl.innerHTML = stepData.text; this.explanationImageEl.innerHTML = createBarsSVG(...stepData.img); this.nextStepBtn.disabled = false; this.prevStepBtn.disabled = false; this.showMistakeBtn.disabled = false; this.timelineEl.querySelectorAll('.timeline-step').forEach(el => el.style.pointerEvents = 'auto'); }, 3000);
+                } else { this.explanationTextEl.innerHTML = stepData.text; this.explanationImageEl.innerHTML = createBarsSVG(...(Array.isArray(stepData.img) ? stepData.img : [0,0,0]), stepData.img); }
+                
+                this.multiplicationTextEl.innerHTML = stepData.mul;
+                this.nextStepBtn.innerText = step === this.currentProblem.totalSteps ? '✏️ 문제 풀기' : '다음 단계';
+            },
+            loadProblem(problemId) {
+                this.currentProblem = this.problems[problemId];
+                this.problem1Btn.classList.toggle('active', problemId === 'p1'); this.problem2Btn.classList.toggle('active', problemId === 'p2');
+                this.divisorEl.innerText = this.currentProblem.divisor;
+                this.inMistakeMode = false;
+                this.buildTimeline();
+                this.renderStep(0);
+                this.resetBtn.innerText = '다시하기';
+                this.showMistakeBtn.disabled = false;
+            },
+            nextStep() {
+                if (this.currentStep < this.currentProblem.totalSteps) { 
+                    this.renderStep(this.currentStep + 1); 
+                } else {
+                    showSection('practice-section');
+                    if (!practiceApp.initialized) practiceApp.init();
+                }
+            },
+            prevStep() { if (this.currentStep > 0) { this.renderStep(this.currentStep - 1); } },
+            goToStep(step) { if (!this.inMistakeMode && step >= 0 && step <= this.currentProblem.totalSteps) { this.renderStep(step); } },
+            saveCurrentState() { this.savedState = { currentStep: this.currentStep }; },
+            restoreState() { this.inMistakeMode = false; this.resetBtn.innerText = '다시하기'; this.showMistakeBtn.disabled = false; this.renderStep(this.savedState.currentStep); },
+            playMistakeAnimation() {
+                if (!this.inMistakeMode) { this.saveCurrentState(); }
+                this.inMistakeMode = true;
+                this.nextStepBtn.disabled = true; this.prevStepBtn.disabled = true; this.showMistakeBtn.disabled = true; this.resetBtn.disabled = true;
+                this.stepCounterEl.innerText = '실수!'; this.stepCounterEl.classList.remove('hidden'); this.updateTimeline(-1);
+                this.quotientEl.innerHTML = '&nbsp;'; this.calcSteps.forEach(step => step.classList.add('hidden'));
+                const firstDigit = Number(String(this.currentProblem.dividend)[0]); const divisor = this.currentProblem.divisor;
+                const wrongQuotient = Math.floor(firstDigit / divisor) + 1; const wrongProduct = wrongQuotient * divisor;
+                this.dividendEl.innerHTML = `<span class="highlight">${firstDigit}</span>` + String(this.currentProblem.dividend).substring(1);
+                setTimeout(() => { this.quotientEl.innerHTML = `<span class="highlight-blue">${wrongQuotient}</span>&nbsp;&nbsp;`; this.explanationTextEl.innerHTML = `<p class="font-bold text-red-600">[실수 과정] 몫을 너무 크게 예상했어요!</p><p>만약 백의 자리 몫을 <span class="highlight-blue">${wrongQuotient}</span>라고 생각하면 어떻게 될까요?</p>`; this.explanationImageEl.innerHTML = createBarsSVG(...String(this.currentProblem.dividend).split('').map(Number)); this.multiplicationTextEl.innerHTML = `잘못된 몫(<span class="highlight-blue">${wrongQuotient}</span>00) × ${divisor} = ${wrongProduct}00`; }, 500);
+                setTimeout(() => { this.calcSteps[0].innerHTML = `<span class="highlight-green">${wrongProduct}</span>`; this.calcSteps[0].classList.remove('hidden'); this.explanationTextEl.innerHTML = `<p class="font-bold text-red-600">[실수 과정] 뺄 수가 없어요!</p><p>몫 <span class="highlight-blue">${wrongQuotient}</span>과 ${divisor}를 곱하니 <span class="highlight-green">${wrongProduct}</span>네요. 어? 백의 자리 <span class="highlight">${firstDigit}</span>에서 <span class="highlight-green">${wrongProduct}</span>를 뺄 수가 없어요!</p><p>이것은 몫을 너무 크게 잡았다는 신호예요.</p>`; this.explanationImageEl.innerHTML = createBarsSVG(firstDigit, 0, 0, { impossible: true }); this.multiplicationTextEl.innerHTML = `<span class="highlight-blue">${wrongQuotient}</span> × ${divisor} = <span class="highlight-green">${wrongProduct}</span>  ➡️  ${firstDigit} - ${wrongProduct} = ? (불가능!)`; }, 2500);
+                setTimeout(() => { this.explanationTextEl.innerHTML = `<p class="font-bold text-red-600">[결론] 몫을 줄여야 해요!</p><p>뺀 값이 나누는 수보다 작아야 합니다. 이럴 땐 몫을 줄여서 다시 계산해야 해요.</p><p>아래 버튼을 눌러 이전 설명으로 돌아가세요.</p>`; this.resetBtn.innerText = '설명으로 돌아가기'; this.resetBtn.disabled = false; }, 4500);
             }
-        }
+        };
 
-        // 충돌 감지 함수
-        function checkCollision(player, obstacle) {
-            return (
-                player.x < obstacle.x + obstacle.width &&
-                player.x + player.width > obstacle.x &&
-                player.y < obstacle.y + obstacle.height &&
-                player.y + player.height > obstacle.y
-            );
-        }
+        // --- Practice App ---
+        const practiceApp = {
+            initialized: false,
+            dividendEl: practiceSection.querySelector('.dividend'),
+            divisorEl: practiceSection.querySelector('.divisor'),
+            quotientEl: practiceSection.querySelector('.quotient'),
+            barDisplayEl: practiceSection.querySelector('.bar-display'),
+            instructionEl: practiceSection.querySelector('.instruction'),
+            userInputEl: practiceSection.querySelector('.input-box'),
+            checkBtn: practiceSection.querySelector('.check-btn'),
+            feedbackEl: practiceSection.querySelector('.feedback'),
+            newSetBtn: practiceSection.querySelector('.new-set-btn'),
+            exportBtn: practiceSection.querySelector('.export-btn'),
+            problemCounterEl: practiceSection.querySelector('#problem-counter'),
+            calcSteps: Array.from({length: 9}, (_, i) => practiceSection.querySelector(`#p-calc-step-${i + 1}`)),
+            problemSet: [],
+            currentProblemIndex: 0,
+            TOTAL_PROBLEMS_PER_SET: 5,
+            currentStep: 0,
+            fullPracticeLog: [],
+            currentStepAttempts: [],
+            init() {
+                if (this.initialized) return;
+                this.newSetBtn.addEventListener('click', () => this.startNewSet());
+                this.checkBtn.addEventListener('click', () => this.checkAnswer());
+                this.userInputEl.addEventListener('keyup', (e) => { if (e.key === 'Enter') { this.checkAnswer(); } });
+                this.exportBtn.addEventListener('click', () => this.exportToCsv());
+                this.startNewSet();
+                this.initialized = true;
+            },
+            generateProblem() {
+                const divisor = Math.floor(Math.random() * 8) + 2; 
+                let quotient = Math.floor(Math.random() * 200) + 100;
+                let dividend = divisor * quotient + Math.floor(Math.random() * divisor);
+                
+                while (dividend > 999) {
+                    quotient = Math.floor(Math.random() * 200) + 100;
+                    dividend = divisor * quotient + Math.floor(Math.random() * divisor);
+                }
 
-        // 게임 오버 처리 함수
-        function handleGameOver() {
-            isGameOver = true;
-            cancelAnimationFrame(animationFrameId);
-            
-            finalScoreElement.textContent = `최종 생존 시간: ${elapsedTime.toFixed(1)}초`;
-            gameOverScreen.classList.remove('hidden');
-            gameOverScreen.classList.add('flex');
-            scoreElement.style.display = 'none';
-        }
-
-        // 메인 게임 루프
-        function gameLoop() {
-            if (isGameOver) return;
-
-            animationFrameId = requestAnimationFrame(gameLoop);
-
-            // 캔버스 지우기
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 시간 및 점수 업데이트
-            elapsedTime = (Date.now() - startTime) / 1000;
-            scoreElement.textContent = `생존 시간: ${elapsedTime.toFixed(1)}초`;
-            
-            // 게임 속도 점진적 증가
-            gameSpeed += GAME_SPEED_INCREMENT;
-
-            // 플레이어 업데이트 및 그리기
-            player.update();
-            player.draw();
-
-            // 장애물 생성 및 관리
-            generateObstacles();
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let o = obstacles[i];
-                o.update();
-                o.draw();
-
-                // 충돌 감지
-                if (checkCollision(player, o)) {
-                    handleGameOver();
+                const d = String(dividend).split('').map(Number); const q = String(quotient).split('').map(Number);
+                const steps = []; let r = 0; let currentVal;
+                
+                // Hundreds
+                currentVal = d[0]; steps.push({ type: 'quotient', answer: q[0], val: currentVal, instruction: `백의 자리 <b class="text-blue-600">${currentVal}</b> 안에 ${divisor}이/가 몇 번 들어갈까요?`, feedback: `정답입니다! ${currentVal} 안에는 ${divisor}이/가 ${q[0]}번 들어가요.` });
+                let product = q[0] * divisor; r = currentVal - product;
+                steps.push({ type: 'multiply', answer: product, instruction: `몫 <b class="text-blue-600">${q[0]}</b>과 나누는 수 <b class="text-blue-600">${divisor}</b>을/를 곱한 값은?`, feedback: `맞아요! ${q[0]} × ${divisor} = ${product} 입니다.`, remainder: r });
+                
+                // Tens
+                currentVal = r * 10 + d[1]; steps.push({ type: 'quotient', answer: q[1], val: currentVal, instruction: `십의 자리 <b class="text-blue-600">${currentVal}</b> 안에 ${divisor}이/가 몇 번 들어갈까요?`, feedback: `정답입니다! ${currentVal} 안에는 ${divisor}이/가 ${q[1]}번 들어가요.` });
+                product = q[1] * divisor; r = currentVal - product;
+                steps.push({ type: 'multiply', answer: product, instruction: `몫 <b class="text-blue-600">${q[1]}</b>과 나누는 수 <b class="text-blue-600">${divisor}</b>을/를 곱한 값은?`, feedback: `맞아요! ${q[1]} × ${divisor} = ${product} 입니다.`, remainder: r });
+                
+                // Ones
+                currentVal = r * 10 + d[2]; steps.push({ type: 'quotient', answer: q[2], val: currentVal, instruction: `일의 자리 <b class="text-blue-600">${currentVal}</b> 안에 ${divisor}이/가 몇 번 들어갈까요?`, feedback: `정답입니다! ${currentVal} 안에는 ${divisor}이/가 ${q[2]}번 들어가요.` });
+                product = q[2] * divisor; r = currentVal - product;
+                steps.push({ type: 'multiply', answer: product, instruction: `몫 <b class="text-blue-600">${q[2]}</b>과 나누는 수 <b class="text-blue-600">${divisor}</b>을/를 곱한 값은?`, feedback: `맞아요! ${q[2]} × ${divisor} = ${product} 입니다.`, remainder: r });
+                
+                return { dividend, divisor, steps };
+            },
+            setupUIForStep() {
+                const stepData = this.problem.steps[this.currentStep];
+                if (!stepData) {
+                    this.currentProblemIndex++;
+                    if (this.currentProblemIndex < this.TOTAL_PROBLEMS_PER_SET) {
+                        this.feedbackEl.innerHTML = `<span class="text-blue-600">좋아요! 다음 문제로 넘어갑니다.</span>`;
+                        setTimeout(() => this.loadPracticeProblem(this.currentProblemIndex), 2000);
+                    } else {
+                        this.instructionEl.innerHTML = '🎉<br>모든 문제를 다 풀었어요! 수고했습니다.';
+                        this.userInputEl.disabled = true; this.checkBtn.disabled = true;
+                        this.feedbackEl.innerHTML = `<span class="text-green-600">학습이 완료되었습니다. 결과를 저장할 수 있습니다.</span>`;
+                        this.newSetBtn.classList.remove('hidden');
+                        this.exportBtn.disabled = false;
+                    }
                     return;
                 }
+                this.instructionEl.innerHTML = stepData.instruction;
+                this.userInputEl.value = ''; this.userInputEl.disabled = false; this.userInputEl.focus();
+                this.checkBtn.disabled = false; this.feedbackEl.textContent = '';
+                this.currentStepAttempts = [];
+            },
+            renderLongDivision() {
+                this.quotientEl.innerHTML = '&nbsp;';
+                this.calcSteps.forEach(el => { el.innerHTML = '&nbsp;'; el.classList.add('hidden'); });
+                const s = this.problem.steps;
+                const q = [s[0].answer, s[2].answer, s[4].answer];
+                const fullQuotient = q.join('');
 
-                // 화면 밖으로 나간 장애물 제거
-                if (o.x + o.width < 0) {
-                    obstacles.splice(i, 1);
+                // --- RENDER QUOTIENT ---
+                let quotientHTML = '';
+                if (this.currentStep >= 1) { quotientHTML += q[0]; }
+                if (this.currentStep >= 3) { quotientHTML += q[1]; }
+                if (this.currentStep >= 5) { quotientHTML += q[2]; }
+                
+                if (this.currentStep >= 1 && this.currentStep < 3) { quotientHTML += `<span class="text-gray-300">__</span>`; }
+                else if (this.currentStep >= 3 && this.currentStep < 5) { quotientHTML += `<span class="text-gray-300">_</span>`; }
+                
+                if (this.currentStep >= this.problem.steps.length) {
+                    this.quotientEl.innerHTML = `<span class="text-green-600">${fullQuotient}</span>`;
+                } else {
+                    this.quotientEl.innerHTML = quotientHTML;
                 }
-            }
-        }
 
-        // 이벤트 리스너 설정
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !isGameOver) {
-                e.preventDefault(); // 스페이스바로 인한 페이지 스크롤 방지
-                player.jump();
-            }
-        });
-        
-        // 터치 및 클릭으로 점프
-        gameContainer.addEventListener('click', () => {
-            if (!isGameOver) {
-                player.jump();
-            }
-        });
+                // --- RENDER CALCULATION ---
+                if (this.currentStep >= 2) {
+                    this.calcSteps[0].innerHTML = String(s[1].answer);
+                    this.calcSteps[0].classList.remove('hidden');
+                    this.calcSteps[1].classList.remove('hidden'); 
+                    this.calcSteps[2].innerHTML = String(s[2].val).padStart(2, '\u00A0');
+                    this.calcSteps[2].classList.remove('hidden');
+                }
+                
+                if (this.currentStep >= 4) {
+                    this.calcSteps[3].innerHTML = String(s[3].answer).padStart(2, '\u00A0');
+                    this.calcSteps[3].classList.remove('hidden');
+                    this.calcSteps[4].classList.remove('hidden');
+                    this.calcSteps[5].innerHTML = String(s[4].val).padStart(3, '\u00A0');
+                    this.calcSteps[5].classList.remove('hidden');
+                } 
+                
+                if (this.currentStep >= 6) {
+                    this.calcSteps[6].innerHTML = String(s[5].answer).padStart(3, '\u00A0');
+                    this.calcSteps[6].classList.remove('hidden');
+                    this.calcSteps[7].classList.remove('hidden');
+                    this.calcSteps[8].innerHTML = String(s[5].remainder).padStart(3, '\u00A0');
+                    this.calcSteps[8].classList.remove('hidden');
+                }
+            },
+            checkAnswer() {
+                const userAnswer = parseInt(this.userInputEl.value);
+                const stepData = this.problem.steps[this.currentStep];
+                const correctAnswer = stepData.answer;
 
-        restartButton.addEventListener('click', startGame);
+                if (isNaN(userAnswer)) {
+                    this.feedbackEl.innerHTML = '숫자를 입력해주세요.';
+                    this.feedbackEl.className = 'mt-4 text-center text-lg font-semibold text-yellow-600';
+                    return;
+                }
+                
+                const isCorrect = userAnswer === correctAnswer;
 
-        // 창 크기 변경 시 캔버스 크기 재조정
-        window.addEventListener('resize', () => {
-            if (!isGameOver) {
-                // 게임이 진행 중일 때는 게임을 재시작하여 크기 문제를 해결
-                startGame();
-            } else {
-                // 게임 오버 상태에서는 캔버스 크기만 조절
-                resizeCanvas();
+                if (isCorrect) {
+                     this.fullPracticeLog.push({
+                        problemNumber: this.currentProblemIndex + 1,
+                        problem: `${this.problem.dividend} ÷ ${this.problem.divisor}`,
+                        question: this.instructionEl.innerText,
+                        studentAnswer: userAnswer,
+                        isCorrect: 'O',
+                        attempts: this.currentStepAttempts.length + 1,
+                        incorrectAnswers: this.currentStepAttempts.join(', ')
+                    });
+                    this.feedbackEl.innerHTML = stepData.feedback;
+                    this.feedbackEl.className = 'mt-4 text-center text-lg font-semibold text-green-600';
+                    this.userInputEl.disabled = true;
+                    this.checkBtn.disabled = true;
+                    
+                    this.currentStep++;
+                    this.renderLongDivision();
+                    
+                    if (stepData.type === 'multiply') {
+                        setTimeout(() => {
+                            this.setupUIForStep();
+                        }, 1500);
+                    } else { // type === 'quotient'
+                        setTimeout(() => {
+                            this.setupUIForStep();
+                        }, 1000);
+                    }
+                } else {
+                    this.currentStepAttempts.push(userAnswer);
+                    let hint = '다시 생각해 보세요. 🤔';
+                    if (stepData.type === 'quotient') {
+                        const product = userAnswer * this.problem.divisor;
+                        if (product > stepData.val) {
+                            hint = `몫이 너무 커요. ${userAnswer} × ${this.problem.divisor} = ${product} 이므로, ${stepData.val} 보다 커서 뺄 수가 없어요.`;
+                        } else {
+                            const remainder = stepData.val - product;
+                            if (remainder >= this.problem.divisor) {
+                                hint = `${userAnswer}은/는 너무 작은 몫이에요. <br> ${this.problem.divisor} × ${userAnswer} = ${product} 이고, ${stepData.val} - ${product} = ${remainder} 이므로 나머지가 나누는 수(${this.problem.divisor})보다 커요.`;
+                            }
+                        }
+                    } else if (stepData.type === 'multiply') {
+                        hint = '곱셈 결과를 다시 확인해 보세요.';
+                    }
+                    
+                    this.feedbackEl.innerHTML = hint;
+                    this.feedbackEl.className = 'mt-4 text-center text-lg font-semibold text-red-600';
+                    this.userInputEl.value = '';
+                    this.userInputEl.focus();
+                }
+            },
+            startNewSet() {
+                this.problemSet = [];
+                this.fullPracticeLog = [];
+                for (let i = 0; i < this.TOTAL_PROBLEMS_PER_SET; i++) {
+                    this.problemSet.push(this.generateProblem());
+                }
+                this.currentProblemIndex = 0;
+                this.loadPracticeProblem(0);
+                this.newSetBtn.classList.add('hidden');
+                this.exportBtn.disabled = true;
+            },
+            loadPracticeProblem(index) {
+                this.problem = this.problemSet[index];
+                this.currentStep = 0;
+                this.problemCounterEl.textContent = `(${index + 1}/${this.TOTAL_PROBLEMS_PER_SET})`;
+                this.dividendEl.textContent = this.problem.dividend;
+                this.divisorEl.textContent = this.problem.divisor;
+                const d = String(this.problem.dividend).split('').map(Number);
+                this.barDisplayEl.innerHTML = this.createPracticeBarsSVG(d[0], d[1], d[2]);
+                this.renderLongDivision();
+                this.setupUIForStep();
+            },
+            startNewProblem() { // This is now an alias for startNewSet
+                this.startNewSet();
+            },
+            exportToCsv() {
+                if (this.fullPracticeLog.length === 0) {
+                    alert('저장할 학습 기록이 없습니다.');
+                    return;
+                }
+                
+                const now = new Date();
+                const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const time = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+                const filename = `${studentNumber}_${studentName}_${date}_${time}.csv`;
+
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Add BOM for Excel
+                csvContent += "문제 번호,문제,질문,최종 답안,정답 여부,시도 횟수,오답 기록\r\n";
+
+                this.fullPracticeLog.forEach(log => {
+                    const question = `"${log.question.replace(/"/g, '""')}"`;
+                    const row = [log.problemNumber, log.problem, question, log.studentAnswer, log.isCorrect, log.attempts, `"${log.incorrectAnswers}"`].join(',');
+                    csvContent += row + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", filename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
-        });
-        
-        // 초기 게임 시작
-        startGame();
+        };
     </script>
 </body>
 </html>
